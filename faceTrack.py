@@ -76,4 +76,60 @@ while cap.isOpened():
             #Get rotational matrix
             rmat, jac = cv2.Rodrigues(rot_vec)
 
-            
+            #Get angles
+            angles, mtxR, mtxQ, Qx, Qy, Qz = cv2.RQDecomp3x3(rmat)
+
+            #Get the y rotation degree
+            x = angles[0] * 360
+            y = angles[1] * 360
+            z = angles[2] * 360
+
+
+            # See where the user's ead tilting
+            if y < -10:
+                text = 'Looking Left'
+            elif y > 10:
+                text = "Looking Right"
+            elif x < -10:
+                text = "Looking Down"
+            elif x > 10:
+                text = "Looking Up"
+            else:
+                text = "Forward"
+
+            #Display the nose direction
+            nose_3d_projection, jacobian = cv2.projectPoints(nose_3d, rot_vec, trans_vec, cam_matrix, dist_matrix)
+
+            p1 = (int(nose_2d[0]), int(nose_2d[1]))
+            p2 = (int(nose_2d[0] + y * 10) , int(nose_2d[1] - x * 10))
+
+            cv2.line(image, p1, p2, (255, 0, 0), 3)
+
+            # Add the text on the image
+            cv2.putText(image, text, (20, 50), cv2.FONT_HERSHEY_SIMPLEX,2, (0, 255, 0), 2)
+            cv2.putText(image, "x:" + str(np.round(x,2)), (500,50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
+            cv2.putText(image, "y:" + str(np.round(x,2)), (500,100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
+            cv2.putText(image, "z:" + str(np.round(x,2)), (500,150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
+
+            mp_drawing.draw_landmarks(
+                image=image,
+                landmark_list=face_landmarks,
+                connections=mp_face_mesh.FACE_CONNECTIONS,
+                landmark_drawing_spec=drawing_spec,
+                connection_drawing_spec=drawing_spec)
+
+        end = time.time()
+        totalTime = end - start
+
+        fps = 1 / totalTime
+        print("FPS: ",fps)
+
+        cv2.putText(image, f'FPS: {int(fps)}', (20,450), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0,255,0), 2)
+
+        cv2.imshow('Head Pose Estiation', image)
+
+        if cv2.waitKey(5) & 0xFF == 27:
+            break
+
+
+cap.release()
