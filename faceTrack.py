@@ -10,7 +10,7 @@ mp_drawing = mp.solutions.drawing_utils
 
 drawing_spec = mp_drawing.DrawingSpec(thickness=1, circle_radius=1)
 
-    
+
 cap = cv2.VideoCapture(0)
 
 while cap.isOpened():
@@ -114,12 +114,13 @@ while cap.isOpened():
             mp_drawing.draw_landmarks(
                 image=image,
                 landmark_list=face_landmarks,
-                connections=mp_face_mesh.FACE_CONNECTIONS,
+                connections=mp_face_mesh.FACEMESH_TESSELATION,
                 landmark_drawing_spec=drawing_spec,
                 connection_drawing_spec=drawing_spec)
 
         end = time.time()
         totalTime = end - start
+        totalTime = max(totalTime, 0.001)
 
         fps = 1 / totalTime
         print("FPS: ",fps)
