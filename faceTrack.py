@@ -87,15 +87,15 @@ while cap.isOpened():
 
             # See where the user's ead tilting
             if y < -10:
-                text = 'Looking Left'
+                text = 'Looking Left/facing away'
             elif y > 10:
-                text = "Looking Right"
+                text = "Looking Right/facing away"
             elif x < -10:
-                text = "Looking Down"
+                text = "Looking Down/facing away"
             elif x > 10:
-                text = "Looking Up"
+                text = "Looking Up/facing away"
             else:
-                text = "Forward"
+                text = "Forward/Facing the screen"
 
             #Display the nose direction
             nose_3d_projection, jacobian = cv2.projectPoints(nose_3d, rot_vec, trans_vec, cam_matrix, dist_matrix)
