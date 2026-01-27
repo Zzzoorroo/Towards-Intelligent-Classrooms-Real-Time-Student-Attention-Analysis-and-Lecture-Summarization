@@ -17,6 +17,8 @@ class FaceHandler:
             return None
 
         if len(results) > 0 and not results[0].empty:
-            self.current_user = os.path.basename(results[0]['identity'][0])
-            return self.current_user
+            match_path = str(results[0]['identity'][0])
+            # Keep the display name as the folder containing the matched image
+            self.current_user = os.path.basename(os.path.dirname(match_path))
+            return match_path
         return None
