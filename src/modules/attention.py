@@ -73,8 +73,8 @@ class AttentionTracker:
             # Thresholding
             if pitch < -10: status = "Looking Down"
             elif pitch > 10: status = "Looking Up"
-            elif yaw < -10: status = "Looking Left"
-            elif yaw > 10: status = "Looking Right"
+            elif yaw < -10: status = "Looking Right"
+            elif yaw > 10: status = "Looking Left"
             else: status = "Focused"
 
             return {
@@ -82,3 +82,5 @@ class AttentionTracker:
                 "pitch": round(pitch, 2),
                 "yaw": round(yaw, 2)
             }
+    def get_states(self,stats):
+        pass

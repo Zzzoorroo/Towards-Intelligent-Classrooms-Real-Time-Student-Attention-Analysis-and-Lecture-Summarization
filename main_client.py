@@ -1,5 +1,6 @@
 import os 
 import cv2
+from pynput import keyboard
 from src.modules.face_module import FaceHandler
 from src.modules.attention import AttentionTracker
 
@@ -32,20 +33,39 @@ if result:
     print("Initializing attention protocol...")
     tracker = AttentionTracker()
     
+    stats = {"Focused": 0, "Distracted": 0, "Missing": 0}
+
     while True:
         ret, frame = cap.read()
         
         if not ret:
             print("Failed to grab frame")
             break
+        frame = cv2.flip(frame, 1)
+        frame_count+=1
+        if frame_count %30 == 0:
+            metrics = tracker.get_attention_metrics(frame)
+            if metrics['status'] == 'Focused':
+                stats["Focused"] = stats.get("Focused",0) + 1
+            elif metrics['status'] == "No Face Detected":
+                stats["Missing"] = stats.get("Missing",0) + 1
+            else:
+                stats["Distracted"] = stats.get("Distracted",0) + 1
         
-        metrics = tracker.get_attention_metrics(frame)
-        print(metrics['status'])
-        
-        # Press 'q' to quit
+        cv2.imshow('Tracker Feed', frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
+            print("User requested exit. Closing...")
             break
     
+    print(stats)
+    print(f"--- Session Summary for {clean_name} ---")
+    print(f"Total Frames Processed: {frame_count}")
+    total = sum(stats.values())
+    if total>0:
+        for key,value in stats.items():
+            pct=(value/total)*100
+            print(f"{key}: {pct:.2f}%")
+    print("-------------------------------------")
     cap.release()
     cv2.destroyAllWindows()
 else:
