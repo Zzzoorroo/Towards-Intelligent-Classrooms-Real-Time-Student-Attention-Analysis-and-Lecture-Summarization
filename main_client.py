@@ -1,3 +1,6 @@
+import requests
+import datetime
+import json
 import os 
 import cv2
 from pynput import keyboard
@@ -33,7 +36,7 @@ if result:
     print("Initializing attention protocol...")
     tracker = AttentionTracker()
     
-    stats = {"Focused": 0, "Distracted": 0, "Missing": 0, "Security_alert": ""}
+    stats = {"Focused": 0, "Distracted": 0, "Missing": 0, "Security_alert": 0}
     missing_streak = 0 
 
     while True:
@@ -62,7 +65,7 @@ if result:
                 audit_name = os.path.basename(os.path.dirname(audit_result))
                 if audit_name != clean_name:
                     print(f"WARNING: Identity mismatch! Expected {clean_name}, found {audit_name}")
-                    stats["Security_alert"] += "WARNING: Identity mismatch! Expected {clean_name}, found {audit_name}"
+                    stats["Security_alert"] = stats.get("Security_alert", 0) + 1
         cv2.imshow('Tracker Feed', frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             print("User requested exit. Closing...")
@@ -83,3 +86,33 @@ else:
     print("Access Denied: No face recognized")
     cap.release()
     cv2.destroyAllWindows()
+    #i will change the folder name from name into id but later on the data base that will be the primary key to etreive the needed info 
+
+final_payload = {
+    "student_id" : clean_name,
+    "timestamp" : datetime.datetime.now().isoformat(),
+    "session_start" : stats
+}
+
+server_url = "http://127.0.0.1:8000/report"
+
+print("Attempting to send report to the server....")
+
+
+try:
+    response = requests.post(server_url, json=final_payload, timeout=5)
+    if response.status_code == 200:
+        print("Sucess! Server received the data ")
+    else:
+        print(f"Server error: {response.status_code}")
+except requests.exceptions.ConnectionError:
+    print("Failed: Server is offline. Saving Backup locally...")
+    clean_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    filename = f"backup_report_{clean_time}.json"
+    with open(filename,"w") as f:
+        json.dump(final_payload, f, indent=4)
+        print(f"Data saved succesfully saved to {filename}")
+except requests.exceptions.Timeout:
+    print("Failed: Server timed out.")
+except Exception as e:
+    print(f"An error has occured {e}")
