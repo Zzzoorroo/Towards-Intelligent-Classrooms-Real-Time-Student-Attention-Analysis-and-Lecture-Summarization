@@ -33,7 +33,8 @@ if result:
     print("Initializing attention protocol...")
     tracker = AttentionTracker()
     
-    stats = {"Focused": 0, "Distracted": 0, "Missing": 0}
+    stats = {"Focused": 0, "Distracted": 0, "Missing": 0, "Security_alert": ""}
+    missing_streak = 0 
 
     while True:
         ret, frame = cap.read()
@@ -47,11 +48,21 @@ if result:
             metrics = tracker.get_attention_metrics(frame)
             if metrics['status'] == 'Focused':
                 stats["Focused"] = stats.get("Focused",0) + 1
-            elif metrics['status'] == "No Face Detected":
+                missing_streak = 0 
+            elif metrics['status'] == "No Face Detected" and missing_streak == 5:
                 stats["Missing"] = stats.get("Missing",0) + 1
+            elif metrics['status'] == "No Face Detected":
+                missing_streak += 1
             else:
                 stats["Distracted"] = stats.get("Distracted",0) + 1
-        
+                missing_streak = 0
+        if frame_count % 900 == 0:
+            audit_result = handler.is_authorized(frame)
+            if audit_result:
+                audit_name = os.path.basename(os.path.dirname(audit_result))
+                if audit_name != clean_name:
+                    print(f"WARNING: Identity mismatch! Expected {clean_name}, found {audit_name}")
+                    stats["Security_alert"] += "WARNING: Identity mismatch! Expected {clean_name}, found {audit_name}"
         cv2.imshow('Tracker Feed', frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             print("User requested exit. Closing...")
