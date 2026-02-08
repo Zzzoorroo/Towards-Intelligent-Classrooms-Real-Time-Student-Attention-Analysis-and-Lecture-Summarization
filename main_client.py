@@ -59,7 +59,7 @@ if result:
             else:
                 stats["Distracted"] = stats.get("Distracted",0) + 1
                 missing_streak = 0
-        if frame_count % 900 == 0:
+        if frame_count % 90 == 0:
             audit_result = handler.is_authorized(frame)
             if audit_result:
                 audit_name = os.path.basename(os.path.dirname(audit_result))

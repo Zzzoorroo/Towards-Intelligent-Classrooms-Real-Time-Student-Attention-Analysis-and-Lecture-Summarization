@@ -1,16 +1,30 @@
-import os 
-import cv2
-from src.modules.face_module import FaceHandler
+  #i will change the folder name from name into id but later on the data base that will be the primary key to etreive the needed info 
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'#silence tensor flow logging
-cap = cv2.VideoCapture(0)
+final_payload = {
+    "student_id" : clean_name,
+    "timestamp" : datetime.datetime.now().isoformat(),
+    "session_start" : stats
+}
 
-if not cap.isOpened():
-    print("Error: Could not open camera.")
-    exit()
+server_url = "http://127.0.0.1:8000/report"
 
-ret,frame = cap.read()    
-handler = FaceHandler(path="data/face_db")
-result = handler.is_authorized(frame)
-while result == None:
-    handler.is_authorized(frame)
+print("Attempting to send report to the server....")
+
+
+try:
+    response = requests.post(server_url, json=final_payload, timeout=5)
+    if response.status_code == 200:
+        print("Sucess! Server received the data ")
+    else:
+        print(f"Server error: {response.status_code}")
+except requests.exceptions.ConnectionError:
+    print("Failed: Server is offline. Saving Backup locally...")
+    clean_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    filename = f"backup_report_{clean_time}.json"
+    with open(filename,"w") as f:
+        json.dump(final_payload, f, indent=4)
+        print(f"Data saved succesfully saved to {filename}")
+except requests.exceptions.Timeout:
+    print("Failed: Server timed out.")
+except Exception as e:
+    print(f"An error has occured {e}")
