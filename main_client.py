@@ -39,12 +39,13 @@ if result:
     stats = {"Focused": 0, "Distracted": 0, "Missing": 0, "Security_alert": 0}
     missing_streak = 0 
 
-    while True:
-        ret, frame = cap.read()
-        
-        if not ret:
-            print("Failed to grab frame")
-            break
+    try:
+        while True:
+            ret, frame = cap.read()
+            
+            if not ret:
+                print("Failed to grab frame")
+                break
         frame = cv2.flip(frame, 1)
         frame_count+=1
         if frame_count %30 == 0:
@@ -66,10 +67,26 @@ if result:
                 if audit_name != clean_name:
                     print(f"WARNING: Identity mismatch! Expected {clean_name}, found {audit_name}")
                     stats["Security_alert"] = stats.get("Security_alert", 0) + 1
-        cv2.imshow('Tracker Feed', frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            print("User requested exit. Closing...")
-            break
+        #3 minute network push
+        if frame_count % 5400 == 0:
+                live_payload = {
+                    "student_id": clean_name,
+                    "focus_score": stats.get("Focused", 0),
+                    "distraction_alerts": stats.get("Distracted", 0),
+                    "security_alerts": stats.get("Security_alert", 0)
+                }
+                try:
+                    # Quick timeout so the camera loop doesn't stall
+                    requests.post("http://127.0.0.1:5000/api/attention", json=live_payload, timeout=0.5)
+                    print(f"📡 [NETWORK] Pushed 3-minute check-in for {clean_name}")
+                except requests.exceptions.RequestException:
+                    pass
+    except KeyboardInterrupt:
+        print("\n🛑 Session ended by user.")
+        
+    # --- END OF SESSION BACKUP ---
+    cap.release()
+    cv2.destroyAllWindows()
     
     print(stats)
     print(f"--- Session Summary for {clean_name} ---")
