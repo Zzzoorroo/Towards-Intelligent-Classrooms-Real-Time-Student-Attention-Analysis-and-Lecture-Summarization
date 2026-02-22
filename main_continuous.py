@@ -1,4 +1,5 @@
 import threading
+import requests
 from src.modules.recorder import AudioRecorder
 from src.modules.transcriber import AudioTranscriber
 
@@ -15,21 +16,33 @@ with open(master_transcript_file, "w") as f:
 
 def process_audio_background(audio_path):
     """This function runs in the background. It transcribes and saves text."""
-    print(f"\n🧠 AI Processing: {audio_path}")
+    print(f"\n AI Processing: {audio_path}")
     text = ai_scribe.transcribe(audio_path, language="en")
     
-    print(f"\n✅ Transcribed: {text}")
+    print(f"\n Transcribed: {text}")
     
-    # Append the text to the master file
+# 1. Append the text to the master file (Local Backup)
     with open(master_transcript_file, "a", encoding="utf-8") as f:
         f.write(text + " ")
-
+        
+    # 2. Send the text to the Central Server (Live Dashboard)
+    try:
+        payload = {"text": text}
+        response = requests.post("http://127.0.0.1:5000/api/summary", json=payload)
+        
+        if response.status_code == 200:
+            print(" [NETWORK] Successfully pushed summary to Central Server.")
+        else:
+            print(f" [NETWORK] Server rejected data: {response.status_code}")
+            
+    except requests.exceptions.ConnectionError:
+        print(" [NETWORK] Cannot reach Central Server. Is it running?")
 # 2. The Infinite Classroom Loop
-print("\n🏫 Classroom Session Started. Press Ctrl+C to end the lecture.")
+print("\n Classroom Session Started. Press Ctrl+C to end the lecture.")
 try:
     while True:
-        # A. Record exactly 15 seconds of audio (short duration for testing)
-        saved_chunk_path = mic.record_chunk(duration_seconds=15)
+        # A. Record exactly 15 minutes of audio 
+        saved_chunk_path = mic.record_chunk(duration_seconds=10)  
         
         # B. Spawn a background thread to process that chunk
         # This allows the loop to instantly restart and record the next chunk!
@@ -40,5 +53,5 @@ try:
         processing_thread.start()
 
 except KeyboardInterrupt:
-    print("\n🛑 Lecture Ended. Waiting for final AI processing to finish...")
+    print("\n Lecture Ended. Waiting for final AI processing to finish...")
     # The script will naturally wait for the last transcription thread to complete

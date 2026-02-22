@@ -94,7 +94,7 @@ final_payload = {
     "session_start" : stats
 }
 
-server_url = "http://127.0.0.1:8000/report"
+server_url = "http://127.0.0.1:5000/api/attention"
 
 print("Attempting to send report to the server....")
 
