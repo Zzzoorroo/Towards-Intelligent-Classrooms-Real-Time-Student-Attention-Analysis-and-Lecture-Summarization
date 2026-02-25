@@ -46,47 +46,65 @@ if result:
             if not ret:
                 print("Failed to grab frame")
                 break
-        frame = cv2.flip(frame, 1)
-        frame_count+=1
-        if frame_count %30 == 0:
-            metrics = tracker.get_attention_metrics(frame)
-            if metrics['status'] == 'Focused':
-                stats["Focused"] = stats.get("Focused",0) + 1
-                missing_streak = 0 
-            elif metrics['status'] == "No Face Detected" and missing_streak == 5:
-                stats["Missing"] = stats.get("Missing",0) + 1
-            elif metrics['status'] == "No Face Detected":
-                missing_streak += 1
-            else:
-                stats["Distracted"] = stats.get("Distracted",0) + 1
-                missing_streak = 0
-        if frame_count % 90 == 0:
-            audit_result = handler.is_authorized(frame)
-            if audit_result:
-                audit_name = os.path.basename(os.path.dirname(audit_result))
-                if audit_name != clean_name:
-                    print(f"WARNING: Identity mismatch! Expected {clean_name}, found {audit_name}")
+            frame = cv2.flip(frame, 1)
+            frame_count+=1
+            if frame_count %30 == 0:
+                metrics = tracker.get_attention_metrics(frame)
+
+                #to be deleted 
+                current_status = metrics.get('status', 'Unknown')
+                
+                if metrics['status'] == 'Focused':
+                    stats["Focused"] = stats.get("Focused",0) + 1
+                    missing_streak = 0 
+                elif current_status == "No Face Detected": # Ensure this matches your tracker's exact output
+                    missing_streak += 1
+                    # Once we hit 5 consecutive strikes (approx 5 seconds), log it as missing
+                    if missing_streak >= 5:
+                        stats["Missing"] = stats.get("Missing",0) + 1
+                        
+                else:
+                    # Captures 'Distracted' or any other unhandled status
+                    stats["Distracted"] = stats.get("Distracted",0) + 1
+                    missing_streak = 0
+            if frame_count % 90 == 0:
+                audit_result = handler.is_authorized(frame)
+                if audit_result:
+                    audit_name = os.path.basename(os.path.dirname(audit_result))
+                    if audit_name == clean_name:
+                        print(f"✅ Identity confirmed: {audit_name}")
+                    if audit_name != clean_name:
+                        print(f"WARNING: Identity mismatch! Expected {clean_name}, found {audit_name}")
+                        stats["Security_alert"] = stats.get("Security_alert", 0) + 1
+                else:
+                    # Unauthorized access detected
+                    print(f"🚨 SECURITY ALERT: Unauthorized person detected!")
                     stats["Security_alert"] = stats.get("Security_alert", 0) + 1
-        #3 minute network push
-        if frame_count % 5400 == 0:
-                live_payload = {
-                    "student_id": clean_name,
-                    "focus_score": stats.get("Focused", 0),
-                    "distraction_alerts": stats.get("Distracted", 0),
-                    "security_alerts": stats.get("Security_alert", 0)
-                }
-                try:
-                    # Quick timeout so the camera loop doesn't stall
-                    requests.post("http://127.0.0.1:5000/api/attention", json=live_payload, timeout=0.5)
-                    print(f"📡 [NETWORK] Pushed 3-minute check-in for {clean_name}")
-                except requests.exceptions.RequestException:
-                    pass
+            #3 minute network push
+            if frame_count % 5400 == 0:
+                    live_payload = {
+                        "student_id": clean_name,
+                        "focus_score": stats.get("Focused", 0),
+                        "distraction_alerts": stats.get("Distracted", 0),
+                        "security_alerts": stats.get("Security_alert", 0)
+                    }
+                    try:
+                        # Quick timeout so the camera loop doesn't stall
+                        requests.post("http://127.0.0.1:5000/api/attention", json=live_payload, timeout=0.5)
+                        print(f"📡 [NETWORK] Pushed 3-minute check-in for {clean_name}")
+                    except requests.exceptions.RequestException:
+                        pass
     except KeyboardInterrupt:
         print("\n🛑 Session ended by user.")
         
     # --- END OF SESSION BACKUP ---
+    except Exception as e:
+        print(f"⚠️ UNEXPECTED ERROR: {e}")
+    finally:
+        print(" Cleaning up hardware resources...")
     cap.release()
     cv2.destroyAllWindows()
+    print(" Camera released safely.")
     
     print(stats)
     print(f"--- Session Summary for {clean_name} ---")
