@@ -8,6 +8,7 @@ from src.modules.face_module import FaceHandler
 from src.modules.attention import AttentionTracker
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'#silence tensor flow logging
+print("Step 1: Initializing Camera...")
 cap = cv2.VideoCapture(0)
 
 if not cap.isOpened():
@@ -19,15 +20,36 @@ result = None
 frame_count = 0
 print("Looking for face...")
 
+# You can pass the student_id as an argument or have it ask
+current_user_id = input("Please enter your Student ID to begin session: ")
+print(f"Verifying identity for {current_user_id}...")
+
+user_img_path = f"data/face_db/{current_user_id}/registration.jpg"
+if not os.path.exists(user_img_path):
+    print(f"Access Denied: No registration image found for student ID {current_user_id}")
+    cap.release()
+    cv2.destroyAllWindows()
+    exit()
+
 while result is None:
     ret, frame = cap.read()
-    
+
     if not ret:
-        print("Failed to grab a frame")
         break
-    frame_count+=1
-    if frame_count % 90 == 0:
-        result = handler.is_authorized(frame)
+
+    frame_count += 1
+    if frame_count % 60 == 0:
+        # Instead of 'is_authorized' (which finds anyone),
+        # use a direct comparison against the specific folder
+        # DeepFace verification logic
+        try:
+            from deepface import DeepFace
+            v = DeepFace.verify(frame, user_img_path, enforce_detection=False)
+            if v["verified"]:
+                result = user_img_path
+                clean_name = current_user_id
+        except:
+            pass
 
 if result:
     clean_name = os.path.basename(os.path.dirname(result))
@@ -81,19 +103,17 @@ if result:
                     print(f"🚨 SECURITY ALERT: Unauthorized person detected!")
                     stats["Security_alert"] = stats.get("Security_alert", 0) + 1
             #3 minute network push
-            if frame_count % 5400 == 0:
-                    live_payload = {
+                try:
+                    live_url = "http://127.0.0.1:5000/api/attention"
+                    # We send the current stats dictionary
+                    requests.post(live_url, json={
                         "student_id": clean_name,
-                        "focus_score": stats.get("Focused", 0),
-                        "distraction_alerts": stats.get("Distracted", 0),
-                        "security_alerts": stats.get("Security_alert", 0)
-                    }
-                    try:
-                        # Quick timeout so the camera loop doesn't stall
-                        requests.post("http://127.0.0.1:5000/api/attention", json=live_payload, timeout=0.5)
-                        print(f"📡 [NETWORK] Pushed 3-minute check-in for {clean_name}")
-                    except requests.exceptions.RequestException:
-                        pass
+                        "Focused": stats["Focused"],
+                        "Distracted": stats["Distracted"],
+                        "Security_alert": stats["Security_alert"]
+                    }, timeout=0.5)
+                except:
+                    pass
     except KeyboardInterrupt:
         print("\n🛑 Session ended by user.")
         

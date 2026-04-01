@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Intelligent Classroom Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-white flex items-center justify-center min-h-screen">
+    <div class="bg-slate-800 p-8 rounded-2xl shadow-xl w-96 border border-slate-700">
+        <div class="flex mb-6 border-b border-slate-700">
+            <button onclick="setMode('login')" id="loginTab" class="flex-1 pb-2 font-bold text-blue-400 border-b-2 border-blue-400">Login</button>
+            <button onclick="setMode('register')" id="regTab" class="flex-1 pb-2 font-bold text-slate-500">Register</button>
+        </div>
+
+        <input type="text" id="sid" placeholder="Student ID" 
+               class="w-full p-3 mb-4 bg-slate-700 rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500">
+        
+        <input type="password" id="password" placeholder="Password" 
+               class="w-full p-3 mb-4 bg-slate-700 rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500">
+
+        <div id="cameraSection" class="hidden">
+            <p class="text-sm text-slate-400 mb-2">A face photo is required for registration.</p>
+            <video id="video" autoplay class="w-full rounded-lg bg-black aspect-video mb-4"></video>
+            <canvas id="canvas" class="hidden"></canvas>
+        </div>
+
+        <button id="mainBtn" onclick="handleAuth()" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold transition">
+            Login
+        </button>
+        
+        <p id="msg" class="mt-4 text-sm text-center text-slate-400"></p>
+    </div>
+
+    <script>
+        let mode = 'login';
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        let stream = null;
+
+        async function setMode(newMode) {
+            mode = newMode;
+            const isReg = mode === 'register';
+            
+            // Toggle UI elements
+            document.getElementById('cameraSection').classList.toggle('hidden', !isReg);
+            document.getElementById('mainBtn').innerText = isReg ? 'Register New Student' : 'Login';
+            
+            // Tab styling
+            document.getElementById('loginTab').className = isReg ? 'flex-1 pb-2 font-bold text-slate-500' : 'flex-1 pb-2 font-bold text-blue-400 border-b-2 border-blue-400';
+            document.getElementById('regTab').className = isReg ? 'flex-1 pb-2 font-bold text-blue-400 border-b-2 border-blue-400' : 'flex-1 pb-2 font-bold text-slate-500';
+
+            // Start/Stop Camera
+            if (isReg && !stream) {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+            } else if (!isReg && stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+        }
+
+        async function handleAuth() {
+            const sid = document.getElementById('sid').value;
+            const pw = document.getElementById('password').value;
+            if(!sid || !pw) return alert("Please fill in all fields.");
+
+            const payload = { student_id: sid, password: pw };
+
+            if (mode === 'register') {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                canvas.getContext('2d').drawImage(video, 0, 0);
+                payload.image = canvas.toDataURL('image/jpeg');
+            }
+
+            const endpoint = mode === 'login' ? '/api/login' : '/api/register';
+            
+            try {
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await res.json();
+                if (res.ok) {
+                    if (mode === 'login') window.location.href = '/dashboard';
+                    else alert("Registration successful! You can now log in.");
+                } else {
+                    alert(result.error || "Authentication failed");
+                }
+            } catch (e) {
+                alert("Server connection failed.");
+            }
+        }
+    </script>
+</body>
+</html>

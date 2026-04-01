@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intelligent Classroom Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-8">
+    <header class="mb-12 border-b border-slate-700 pb-6 flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
+                Intelligent Classroom
+            </h1>
+            <p class="text-slate-400">Real-Time Analysis & Summarization</p>
+        </div>
+        <div id="status-indicator" class="px-4 py-2 rounded-full bg-emerald-500/20 text-emerald-400 text-sm border border-emerald-500/50">
+            ● System Live
+        </div>
+    </header>
+
+    <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="lg:col-span-1 space-y-8">
+            <section class="glass p-6 rounded-2xl border border-slate-700">
+                <h2 class="text-xl font-semibold mb-4 text-blue-400">Student Attention</h2>
+                <canvas id="attentionChart"></canvas>
+            </section>
+            
+            <section class="glass p-6 rounded-2xl border border-slate-700">
+                <h2 class="text-xl font-semibold mb-4 text-red-400">Security Alerts</h2>
+                <div id="alert-count" class="text-5xl font-mono text-center py-4">0</div>
+            </section>
+        </div>
+
+        <div class="lg:col-span-2">
+            <section class="glass p-6 rounded-2xl border border-slate-700 h-full">
+                <h2 class="text-xl font-semibold mb-6 text-emerald-400">Lecture Summaries</h2>
+                <div id="summary-feed" class="space-y-4 max-h-[600px] overflow-y-auto pr-4">
+                    <div class="text-slate-500 italic">Waiting for lecture data...</div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        async function updateDashboard() {
+            try {
+                const response = await fetch('/api/dashboard');
+                const data = await response.json();
+
+                // 1. Update Summaries
+                const feed = document.getElementById('summary-feed');
+                feed.innerHTML = data.lecture_summaries.map(s => `
+                    <div class="bg-slate-800/50 p-4 rounded-xl border-l-4 border-emerald-500">
+                        <span class="text-xs text-slate-500">${s.timestamp}</span>
+                        <p class="mt-1">${s.text}</p>
+                    </div>
+                `).reverse().join('') || '<div class="text-slate-500 italic">No summaries yet...</div>';
+
+                // 2. Update Attention Stats
+                if (data.student_attention.length > 0) {
+                    const last = data.student_attention[data.student_attention.length - 1];
+                    document.getElementById('alert-count').innerText = last.security_alerts || 0;
+                    
+                    // Update Chart Data (Simplified for this example)
+                    attentionChart.data.datasets[0].data = [last.focus_score, last.distraction_alerts];
+                    attentionChart.update();
+                }
+            } catch (e) { console.error("Update failed", e); }
+        }
+
+        // Initialize Chart
+        const ctx = document.getElementById('attentionChart').getContext('2d');
+        const attentionChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Focused', 'Distracted'],
+                datasets: [{
+                    data: [0, 0],
+                    backgroundColor: ['#10b981', '#ef4444'],
+                    borderWidth: 0
+                }]
+            },
+            options: { cutout: '70%', plugins: { legend: { position: 'bottom' } } }
+        });
+
+        // Poll the server every 5 seconds for updates
+        setInterval(updateDashboard, 5000);
+        updateDashboard();
+    </script>
+</body>
+</html>
